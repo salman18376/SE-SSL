@@ -17,4 +17,3 @@ model/speech_enhancement_model_v2.py
 Ram.py
 run_py.sh
 metrics.sh 
-*.sh
