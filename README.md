@@ -19,8 +19,12 @@ The dataset is expected to be in the `audio/` folder.
 - `audio/clean_trainset_wav_16k` contains the clean training set.
 - `audio/noisy_trainset_wav_16k` contains the noisy training set.
 
-You can update the path to the dataset in the [`configs/mpnet_weights.json file.]. To apply PCS to the audio you can use apply_pcs, please make sure to update the paths in the apply_pcs.py for audios.
+You can update the path to the dataset in the [`configs/mpnet_weights.json file.]. 
 The configuration file also contains other parameters you can change to run the experiment (e.g., compression, learnable sigmoid, etc.).
+
+## PCS on Audios
+To apply PCS to the audio you can use apply_pcs, please make sure to update the paths in the apply_pcs.py for audios.
+
 
 
 ## Training and evaluation
