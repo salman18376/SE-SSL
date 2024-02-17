@@ -25,7 +25,9 @@ The configuration file also contains other parameters you can change to run the 
 ## PCS on Audios
 To apply PCS to the audio you can use apply_pcs, please make sure to update the paths in the apply_pcs.py for audios.
 
+## For best model 
 
+Run wavlm_best.sh for the best model, which is using conformer as a head. Additionally, remember to use waveform_loss (weighted_sdr_loss) in conjunction with consistency_loss (L1) and unconsistency_loss (L1).
 
 ## Training and evaluation
 
@@ -59,12 +61,10 @@ CUDA_VISIBLE_DEVICES=0 python compute_metrics_v3.py \
 ```
 After running the evaluation script, you can use the `results/mag_only/wavlm_best.txt` file to check the results regarding PESQ and STOI.
 
-## For best model 
-
-Run wavlm_best.sh for the best model, which is using conformer as a head. Additionally, remember to use waveform_loss (weighted_sdr_loss) in conjunction with consistency_loss (L1) and unconsistency_loss (L1).
 
 
-You should set the command line arguments according to your needs. For example, you can change the model tag to use a different pre-trained model. You can also change the magnitude head to use different architectures (e.g., `lstm` or `transformer`). 
+
+You can set the command line arguments according to your needs. For example, you can change the model tag to use a different pre-trained model. You can also change the magnitude head to use different architectures (e.g., `lstm` or `transformer`). 
 
 You should also check the `CUDA_VISIBLE_DEVICES` variable to make sure that you are using the correct GPU. The code is only tested on a single GPU at the moment.
 
