@@ -21,7 +21,7 @@
     "metric_loss_weight": 0.0,
     "normalize_waveform": true,
     "use_augmentation_mode": true,
-    "max_length_in_seconds": 8, 
+    "max_length_in_seconds": 10, 
     "duplicate_from_cnn": true,
     "normalized_stft" : false,
     "use_compression": true,
