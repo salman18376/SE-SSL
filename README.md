@@ -11,7 +11,7 @@ You can install the required packages using the following command:
 pip install -r requirements.txt
 ```
 
-## Data preparation
+## Data Preparation
 
 The dataset is expected to be in the `audio/` folder. 
 - `audio/clean_testset_wav_16k` contains the clean test set.
@@ -19,7 +19,7 @@ The dataset is expected to be in the `audio/` folder.
 - `audio/clean_trainset_wav_16k` contains the clean training set.
 - `audio/noisy_trainset_wav_16k` contains the noisy training set.
 
-You can update the path to the dataset in the [`configs/mpnet_weights.json file.]
+You can update the path to the dataset in the [`configs/mpnet_weights.json file.] To apply PCS to the audio you can use apply_pcs, please make sure to update the paths in the apply_pcs.py for audios.
 The configuration file also contains other parameters that you can change to run the experiment (e.g., compression, learnable sigmoid, etc.).
 
 
