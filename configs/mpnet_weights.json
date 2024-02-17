@@ -30,5 +30,5 @@
     "compressor_alpha": 0.3,
 
     "sigmoid_type": "standard",
-    "use_all_layers": true
+    "use_all_layers": false
 }
