@@ -25,7 +25,7 @@ python compute_metrics_v3.py \
     --cuda \
     --reconstructed_audio_folder reconstructed_audio/mag_only/wavlm_mag_conf_uncosis_consis \
     --model_tag microsoft/wavlm-large \
-    --magnitude_head conformer   > results/mag_only/wavlm_mag_conf_uncosis_consis.txt
+    --magnitude_head conformer > results/mag_only/wavlm_mag_conf_uncosis_consis.txt
 
 
 
