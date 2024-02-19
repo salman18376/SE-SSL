@@ -132,18 +132,7 @@ class SpeechEnhancementModel(nn.Module):
         :return: The nn.Module head.
         '''
 
-        if head_type == "cnn":
-            return CNN(input_dim=input_dim, output_dim=self.stft_embedding_dim, input_channels=1,
-                layers=[
-                    (32, 3, 1),
-                    (64, 3, 1),
-                    (128, 3, 1),
-                    (64, 3, 1),
-                    (32, 3, 1),
-                    (1, 3, 1),
-                ]
-            )
-        elif head_type == "lstm":
+        if head_type == "lstm":
             return LSTM(input_dim=input_dim, hidden_dim=256, output_dim=self.stft_embedding_dim, input_channels=1, num_layers=2)
         
         elif head_type == "unet":
