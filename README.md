@@ -27,7 +27,7 @@ To apply PCS to the audio you can use apply_pcs, please update the paths in the 
 
 ## For best model 
 
-Run wavlm_best.sh for the best model, which is a conformer as a head. Additionally, remember to use waveform_loss (weighted_sdr_loss) in conjunction with consistency_loss (L1) and unconsistency_loss (L1).
+Run wavlm_best.sh for the best model, which is a conformer as a head. Additionally, remember to use waveform_loss (weighted_sdr_loss) in conjunction with consistency_loss (L1) and unconsistency_loss (L1). You can also download the best model weights from https://drive.google.com/file/d/1R3XnnmFNu8xDb3oJg2Ct7BkJ9RP24Gqk/view?usp=drive_link.
 
 ## Training and evaluation
 
