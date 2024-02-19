@@ -17,7 +17,7 @@ from transformers import AutoFeatureExtractor, AutoModel
 
 from data.compressor import SpectrogramCompressor
 from data.audio_dataset import AudioDataset
-from model.losses import weighted_sdr_loss, phase_loss
+from model.losses import weighted_sdr_loss
 from data.audio_processor import AudioProcessor
 
 from utils import get_pred_waveforms, get_target_waveforms
@@ -137,13 +137,6 @@ ssl_model = ssl_model.encoder
 if config["duplicate_from_cnn"]:
     ssl_model.conv2.stride = (1,)
 
- 
-
-
-if config["duplicate_from_cnn"]:
-    ssl_model.feature_extractor.conv_layers[6].conv.stride = (1,)
-    
-  
 
 if args.log_on_comet:
     experiment = Experiment(
@@ -239,13 +232,8 @@ if os.path.exists(args.checkpoint_dir) is False:
 
 
 losses = {
-    "complex_loss": [],
-    "phase": [],#(phase_loss, config["phase_loss_weight"])],
     "waveform": [(nn.L1Loss(), config["waveform_loss_weight"])], 
     "consistency": [(nn.L1Loss(), config["consistency_loss_weight"])],
-    "complex_consistency":[],#(nn.L1Loss(), config["consistency_loss_weight"])],
-    "mrstft" : []#(waveform_mrstft, config["consistency_loss_weight"])],
-    
 }
 
 def train_step(model, 
@@ -319,27 +307,6 @@ def train_step(model,
             predicted_mag = predicted_mag * input_mag
         
 
-       # -------------------  cosine_loss -------------------
-        input_waveforms = batch["input_waveform"]
-        target_waveforms = batch["output_waveform"]
-        target_mag = batch["output_stft"]
-        target_phase = batch["output_phase"]
-        output_complex = batch["output_complex"]
-        output_complex = output_complex.permute(0, 2, 1, 3)
-      
-        predicted_phase = predicted_phase[:, :predicted_mag.shape[1], :]
-        target_mag = target_mag[:, :predicted_mag.shape[1], :]  #TODO: Adjust input_mag size
-        target_phase = target_phase[:, :predicted_phase.shape[1], :]
-        
-
-        cosin_losses = []
-        for loss_fn, loss_w in losses["complex_loss"]:
-            l = loss_fn(predicted_phase, target_mag, target_phase) * loss_w
-            cosin_losses.append(l)
-
-        cosin_loss = sum(cosin_losses) / len(cosin_losses) if len(cosin_losses) > 0 else torch.tensor(0.0).to(device)
-
-
         # -------------------  waveform loss -------------------
         
         input_waveforms = batch["input_waveform"]
@@ -348,7 +315,7 @@ def train_step(model,
         noisy_phase = batch["input_phase"]
         target_phase = batch["output_phase"]
          
-        # predicted_phase = predicted_phase[:, :predicted_mag.shape[1], :]  #TODO: Adjust input_mag size
+        predicted_phase = predicted_phase[:, :predicted_mag.shape[1], :]  #TODO: Adjust input_mag size
         
    
         
@@ -359,8 +326,8 @@ def train_step(model,
                                                 input_waveforms =input_waveforms, 
                                                 norm_factors=None)
                    
-        # target_mag = target_mag[:, :predicted_mag.shape[1], :]  #TODO: Adjust input_mag size
-        # target_phase = target_phase[:, :predicted_phase.shape[1], :]  
+        target_mag = target_mag[:, :predicted_mag.shape[1], :]  #TODO: Adjust input_mag size
+        target_phase = target_phase[:, :predicted_phase.shape[1], :]  
         # Compress the target spectrogram if compression is enabled
         if compressor is not None:
             target_mag = compressor.compress(target_mag) 
@@ -384,45 +351,7 @@ def train_step(model,
 
         waveform_loss = sum(waveform_losses) / len(waveform_losses) if len(waveform_losses) > 0 else torch.tensor(0.0).to(device)
         
-         # -------------------  mrstft loss -------------------
-        
-        input_waveforms = batch["input_waveform"]
-        targ_waveforms = batch["output_waveform"]
-        target_mag = batch["output_stft"]
-        noisy_phase = batch["input_phase"]
-        target_phase = batch["output_phase"]
-        
-        
-        predicted_waveforms =get_pred_waveforms(predicted_magnitude =predicted_mag,
-                                                predicted_phase =predicted_phase, 
-                                                compressor=compressor,
-                                                audio_processor =audio_processor, 
-                                                input_waveforms =input_waveforms, 
-                                                norm_factors=None)
-                   
-           
-        # Compress the target spectrogram if compression is enabled
-        if compressor is not None:
-            target_mag = compressor.compress(target_mag)  
-        # target_mag = target_mag[:, :predicted_mag.shape[1], :]  #TODO: Adjust input_mag size
-        # target_phase = target_phase[:, :predicted_phase.shape[1], :]  
-        target_waveforms =get_target_waveforms(targ_waveforms, 
-                                                    target_mag, 
-                                                    target_phase, 
-                                                    audio_processor,
-                                                    compressor=compressor)
-        
-
-        mrstft_losses = [] 
-        
-        for loss_fn, loss_w in losses["mrstft"]:
- 
-            
-            l = loss_fn(predicted_waveforms, targ_waveforms) * loss_w
-            mrstft_losses.append(l)
-
-        mrstft_loss = sum(mrstft_losses) / len(mrstft_losses) if len(mrstft_losses) > 0 else torch.tensor(0.0).to(device)
-        
+       
         # -------------------  consistency_loss -------------------
         input_waveforms = batch["input_waveform"]
         targ_waveforms = batch["output_waveform"]
@@ -471,28 +400,7 @@ def train_step(model,
 
         consistency_loss_mag = sum(consistency_losses) / len(consistency_losses) if len(consistency_losses) > 0 else torch.tensor(0.0).to(device)
 
-        # -------------------  phase loss -------------------
-        input_waveforms = batch["input_waveform"]
-        target_waveforms = batch["output_waveform"]
-        target_mag = batch["output_stft"]
-        noisy_phase = batch["input_phase"]
-        target_phase = batch["output_phase"]
-        target_complex = batch["output_complex"]
-         
-        target_complex = target_complex.permute(0, 2, 1, 3)
-        # print(predicted_phase.shape, target_phase.shape)
-        target_phase = target_phase[:, :predicted_phase.shape[1], :]
-        # print(predicted_phase.shape, target_phase.shape)
-        phase_losses = []
-        for loss_fn, loss_w in losses["phase"]:
-            
-            l = loss_fn ( predicted_phase, target_phase) * loss_w
-            
-            phase_losses.append(l)
-        
-        phase_loss = sum(phase_losses) / len(phase_losses) if len(phase_losses) > 0 else torch.tensor(0.0).to(device)
-        
-        
+       
         # ------------------- MetricGAN Loss -------------------
         
         if config["metric_loss_weight"] > 0.0:
@@ -501,7 +409,6 @@ def train_step(model,
             targ_waveforms = batch["output_waveform"]
             target_phase = batch["output_phase"]
 
-            
 
             predicted_waveforms =get_pred_waveforms(predicted_magnitude =predicted_mag,
                                                 predicted_phase =predicted_phase, 
@@ -509,9 +416,7 @@ def train_step(model,
                                                 audio_processor =audio_processor, 
                                                 input_waveforms =input_waveforms, 
                                                 norm_factors=None)
-            
-            
-            
+
             target_waveforms =get_target_waveforms(targ_waveforms, 
                                                     target_mag, 
                                                     target_phase, 
@@ -522,13 +427,10 @@ def train_step(model,
             if compressor is not None:
                 target_mag = compressor.compress(target_mag)
 
-            
-
             # Calculate PESQ score between target and predicted waveforms
             audio_list_r, audio_list_g = list(target_waveforms.detach().cpu().numpy()), list(predicted_waveforms.detach().cpu().numpy())
             batch_pesq_score = batch_pesq(audio_list_r, audio_list_g)
-
-                     
+  
             # Get the batch size for later use (creates a tensor of ones with the same batch size)
             batch_size = target_mag.shape[0]
             one_labels = torch.ones(batch_size).to(device)
@@ -549,7 +451,6 @@ def train_step(model,
             
             loss_disc_all = loss_disc_r + loss_disc_g
             
-        
 
             # Apply gradient clipping to the model's parameters if specified
             if args.gradient_clipping is not None:
@@ -567,7 +468,7 @@ def train_step(model,
               
 
         # Calculate the final loss as a combination of various component losses
-        final_loss = cosin_loss + consistency_loss_mag + phase_loss + waveform_loss + mrstft_loss + loss_metric
+        final_loss = consistency_loss_mag + waveform_loss  + loss_metric
 
         # Apply gradient clipping to the model's parameters if specified
         if args.gradient_clipping is not None:
@@ -588,12 +489,8 @@ def train_step(model,
             else:
                 experiment.log_metric("learning_rate", optimizer.param_groups[0]["lr"], step=epoch * len(train_dataloader) + p_bar.n)
 
-            experiment.log_metric("cosin_loss", cosin_loss.item(), step=epoch * len(train_dataloader) + p_bar.n)
             experiment.log_metric("consistency_loss_mag", consistency_loss_mag.item(), step=epoch * len(train_dataloader) + p_bar.n)
-            experiment.log_metric("phase_loss", phase_loss.item(), step=epoch * len(train_dataloader) + p_bar.n)
             experiment.log_metric("waveform_loss", waveform_loss.item(), step=epoch * len(train_dataloader) + p_bar.n)
-            experiment.log_metric("mrstft_loss", mrstft_loss.item(), step=epoch * len(train_dataloader) + p_bar.n)
-            # experiment.log_metric("consistency_loss_complex", consistency_loss_complex.item(), step=epoch * len(train_dataloader) + p_bar.n)
             experiment.log_metric("discriminator_loss", loss_metric.item(), step=epoch * len(train_dataloader) + p_bar.n) 
 
     return train_loss / len(train_dataloader)
