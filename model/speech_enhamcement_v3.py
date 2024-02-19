@@ -11,7 +11,6 @@ from tqdm import tqdm
 import time
 from data.audio_processor import AudioProcessor
 from data.compressor import SpectrogramCompressor
-from model.cnn import CNN
 from model.lstm import LSTM
 from model.unet import UNet
 from model.transformer import TransformerHead

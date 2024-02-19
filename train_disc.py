@@ -18,7 +18,7 @@ from transformers import AutoFeatureExtractor, AutoModel
 from data.compressor import SpectrogramCompressor
 from data.audio_dataset import AudioDataset
 from model.losses import weighted_sdr_loss
-from model.metric_loss import PerceptualLoss
+
 from data.audio_processor import AudioProcessor
 from transformers import Wav2Vec2Model, Wav2Vec2Processor
 from utils import get_pred_waveforms, get_target_waveforms
@@ -231,9 +231,7 @@ early_stopping_counter = 0
 if os.path.exists(args.checkpoint_dir) is False:
     os.makedirs(args.checkpoint_dir)
 
-perceptual_loss = PerceptualLoss()
 
-Ssl_mag_loss = SslMagLoss()
 
 losses = {
     "complex_loss": [],
