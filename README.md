@@ -65,8 +65,7 @@ You can set the command line arguments according to your needs. For example, you
 
 You should also check the `CUDA_VISIBLE_DEVICES` variable to make sure that you are using the correct GPU. The code is only tested on a single GPU at the moment.
 
-You can also use the pre-trained best checkpoint file we provide in the mag_only/wavlm_best/best_model.pt.
-Generated WAV files are saved in the reconstructed_audio_folder.
+Enhanced WAV files are saved in the reconstructed_audio_folder.
 For computing other metrics like CBAK, COVL, etc you can run metrics.sh and update the paths for enhanced and clean waveforms accordingly.
 
 
