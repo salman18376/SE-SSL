@@ -278,7 +278,7 @@ def train_step(model,
             input_mag = compressor.compress(input_mag)
             batch["input_stft"] = input_mag
 
-        predicted_mag, predicted_phase= model(batch)
+        predicted_mag = model(batch)
         
         if config["type"] == "masking" and magnitude_head is not None:
             
@@ -538,20 +538,19 @@ for epoch in range(args.num_epochs):
                     input_mag = compressor.compress(input_mag)
                     batch["input_stft"] = input_mag
 
-                predicted_mag, predicted_phase = model(batch)
+                predicted_mag = model(batch)
 
                 if config["type"] == "masking" and args.magnitude_head is not None:
                     predicted_mag = predicted_mag * input_mag
 
 
                 predicted_mag = predicted_mag.squeeze(0)
-                predicted_phase = predicted_phase.squeeze(0)
 
                 # ----------------- Decompress the predicted spectrogram -----------------
                 if compressor is not None: predicted_mag = compressor.decompress(predicted_mag)
                 else: mag_predicted = predicted_mag
 
-                enhanced_wav = audio_processor.get_waveform_from_spectrogram(predicted_mag, predicted_phase, target_length=len_original_audio)
+                enhanced_wav = audio_processor.get_waveform_from_spectrogram(predicted_mag, input_phase, target_length=len_original_audio)
                 enhanced_wav = enhanced_wav / norm_factor
                 
                 enhanced_wav = enhanced_wav.unsqueeze(dim=0)
