@@ -23,8 +23,6 @@ from data.audio_processor import AudioProcessor
 from transformers import Wav2Vec2Model, Wav2Vec2Processor
 from utils import get_pred_waveforms, get_target_waveforms
 from model.speech_enhamcement_v3 import SpeechEnhancementModel
-from model.discriminator import batch_pesq, MetricDiscriminator
-
 import argparse
 import torchmetrics
 from torch.nn.parallel import DataParallel
@@ -62,10 +60,6 @@ parser.add_argument("--adaptive_lr", action="store_true", help="use adaptive lea
 parser.add_argument("--model_tag", type=str, help="tag of the transformer model to use from the HuggingFace model hub")
 parser.add_argument("--freeze_ssl", action="store_true", help="freeze the weights of the SSL model")
 parser.add_argument("--magnitude_head", type=str, default=None, help="head to use for the magnitude spectrogram")
-parser.add_argument("--phase_head", type=str, default=None, help="head to use for the phase spectrogram")
-parser.add_argument("--complex_head", type=str, default=None, help="head to use for the complex spectrogram")
-
-parser.add_argument("--debug", action="store_true", help="debug mode")
 
 
 args = parser.parse_args()
@@ -134,11 +128,8 @@ ssl_model = AutoModel.from_pretrained(args.model_tag, output_hidden_states=confi
 
 
 print(f'Number of trainable parameters: {sum(p.numel() for p in ssl_model.parameters() if p.requires_grad) / 1e6:.2f}M')                                      
-# print(ssl_model) #NOTE: how to access the config as i am doing hardcoding
 if config["duplicate_from_cnn"]:
-    ssl_model.feature_extractor.conv_layers[6].conv.stride = (1,)
-   
-
+    ssl_model.feature_extractor.conv_layers[6].conv.stride = (1,)  
 
 if args.log_on_comet:
     experiment = Experiment(
@@ -166,8 +157,6 @@ model = SpeechEnhancementModel(
     ssl_model=ssl_model,
     freeze_ssl=args.freeze_ssl,
     magnitude_head=args.magnitude_head,
-    phase_head=args.phase_head,
-    complex_head=args.complex_head,
     ssl_embedding_dim=ssl_model.config.hidden_size,
     stft_embedding_dim=config["stft_embedding_dim"],
     type=config["type"],
@@ -200,9 +189,6 @@ print("SpeechEnhancementModel model loaded.")
 optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
 
-metric_discriminator = MetricDiscriminator().to(device)
-metric_discriminator_optimizer = optim.Adam(metric_discriminator.parameters(), lr=args.learning_rate)
-
 if config["scheduler"] is None:
     scheduler = None
 elif config["scheduler"] == "linear_with_warmup":
@@ -215,7 +201,6 @@ elif config["scheduler"] == "linear_with_warmup":
             ) ** 0.9
     )
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
-
 
 
 
@@ -246,12 +231,9 @@ def train_step(model,
                losses, optimizer, 
                audio_processor,
                compressor,
-               metric_discriminator,
-               metric_discriminator_optimizer,
                scheduler, 
                device, 
                magnitude_head, 
-               phase_head,complex_head, 
                epoch_num, experiment=None,
                ):
     """
@@ -268,16 +250,11 @@ def train_step(model,
         audio_processor: Audio processing functions (e.g., spectrogram-to-waveform).
         epoch_num: The current epoch number for tracking progress.
         magnitude_head : magnitude head e.g conformer
-        phase_head : phase head e.g conformer
-        complex_head : complex head 
-        metric_discriminator : metric_discriminator GAN
-        metric_discriminator_optimizer : metric_discriminator_optimizer e.g Adam
 
     Returns:
         The average training loss for the epoch.
     """    
     
-    metric_discriminator.train()
     model.train()
     train_loss = 0.0
     
@@ -359,12 +336,12 @@ def train_step(model,
                                                 input_waveforms =input_waveforms, 
                                                 norm_factors=None)
         
-        predicted_mag = audio_processor.get_spectrogram_from_waveform(predicted_waveforms)
+        predicted_mag_cs = audio_processor.get_spectrogram_from_waveform(predicted_waveforms)
 
         # If compression is enabled, compress the predicted spectrogram
         if compressor is not None:
-            predicted_mag = predicted_mag[0]  # Extract the tensor from the tuple
-            predicted_mag = compressor.compress(predicted_mag)
+            predicted_mag_cs = predicted_mag_cs[0]  # Extract the tensor from the tuple
+            predicted_mag_cs = compressor.compress(predicted_mag)
             
 
             
@@ -377,17 +354,17 @@ def train_step(model,
                                                     target_phase, 
                                                     audio_processor,
                                                     compressor=compressor)
-        target_mag = audio_processor.get_spectrogram_from_waveform(target_waveforms)
+        target_mag_cs = audio_processor.get_spectrogram_from_waveform(target_waveforms)
 
         # Compress the predicted spectrogram if compression is enabled
         if compressor is not None:
-            target_mag = target_mag[0]  # Extract the tensor from the tuple
-            target_mag = compressor.compress(target_mag)
+            target_mag_cs = target_mag_cs[0]  # Extract the tensor from the tuple
+            target_mag_cs = compressor.compress(target_mag)
             
         consistency_losses = []
         for loss_fn, loss_w in losses["consistency"]:
            
-            l = loss_fn( predicted_mag, target_mag) * loss_w
+            l = loss_fn( predicted_mag_cs, target_mag_cs) * loss_w
             consistency_losses.append(l)
 
         consistency_loss_mag = sum(consistency_losses) / len(consistency_losses) if len(consistency_losses) > 0 else torch.tensor(0.0).to(device)
@@ -412,65 +389,7 @@ def train_step(model,
 
         unconsistency_loss_mag = sum(magnitude_losses) / len(magnitude_losses) if len(magnitude_losses) > 0 else torch.tensor(0.0).to(device)
 
-        # ------------------- MetricGAN Loss -------------------
-        
-        if config["metric_loss_weight"] > 0.0:
-            input_waveforms = batch["input_waveform"]
-            target_mag = batch["output_stft"]
-            targ_waveforms = batch["output_waveform"]
-            target_phase = batch["output_phase"]
-
-            predicted_waveforms =get_pred_waveforms(predicted_magnitude =predicted_mag,
-                                                predicted_phase =predicted_phase, 
-                                                compressor=compressor,
-                                                audio_processor =audio_processor, 
-                                                input_waveforms =input_waveforms, 
-                                                norm_factors=None)
             
-
-            # Compress the target spectrogram if compression is enabled
-            if compressor is not None:
-                target_mag = compressor.compress(target_mag)
-
-            # Calculate PESQ score between target and predicted waveforms
-            audio_list_r, audio_list_g = list(target_waveforms.detach().cpu().numpy()), list(predicted_waveforms.detach().cpu().numpy())
-            batch_pesq_score = batch_pesq(audio_list_r, audio_list_g)
-
-                     
-            # Get the batch size for later use (creates a tensor of ones with the same batch size)
-            batch_size = target_mag.shape[0]
-            one_labels = torch.ones(batch_size).to(device)
-            
-             # Discriminator
-            metric_discriminator_optimizer.zero_grad()
-            
-            # Calculate MetricGAN losses
-            # Calculate the discriminator response for both real and generated target magnitude
-            metric_r = metric_discriminator(target_mag, target_mag)
-            metric_g = metric_discriminator(target_mag, predicted_mag.detach())
-            loss_disc_r = F.mse_loss(one_labels, metric_r.flatten())
-            
-            if batch_pesq_score is not None:
-                loss_disc_g = F.mse_loss(batch_pesq_score.to(device), metric_g.flatten())
-            else:
-                loss_disc_g = 0
-            
-            loss_disc_all = loss_disc_r + loss_disc_g
-
-            # Apply gradient clipping to the model's parameters if specified
-            if args.gradient_clipping is not None:
-                nn.utils.clip_grad_norm_(metric_discriminator.parameters(), args.gradient_clipping)
-             
-            loss_disc_all.backward()
-            metric_discriminator_optimizer.step()
-                
-            # Metric Loss TODO: try with compress predicted and targ mag
-            metric_g = metric_discriminator(target_mag, predicted_mag)
-            loss_metric = F.mse_loss(metric_g.flatten(), one_labels.float())* config["metric_loss_weight"]
-        else:
-            loss_metric =  torch.tensor(0.0).to(device)
-        
-              
 
         # Calculate the final loss as a combination of various component losses
         final_loss =  consistency_loss_mag + waveform_loss  + loss_metric + unconsistency_loss_mag 
@@ -497,7 +416,6 @@ def train_step(model,
             experiment.log_metric("consistency_loss_mag", consistency_loss_mag.item(), step=epoch * len(train_dataloader) + p_bar.n)
             experiment.log_metric("unconsistency_loss_mag", unconsistency_loss_mag.item(), step=epoch * len(train_dataloader) + p_bar.n)
             experiment.log_metric("waveform_loss", waveform_loss.item(), step=epoch * len(train_dataloader) + p_bar.n)
-            experiment.log_metric("discriminator_loss", loss_metric.item(), step=epoch * len(train_dataloader) + p_bar.n) 
 
     return train_loss / len(train_dataloader)
 
@@ -587,13 +505,9 @@ for epoch in range(args.num_epochs):
                losses =losses, optimizer = optimizer, 
                audio_processor = audio_processor,
                compressor = compressor,
-               
-               metric_discriminator = metric_discriminator,
-               metric_discriminator_optimizer = metric_discriminator_optimizer,
                scheduler =scheduler, 
                device = device,
                magnitude_head = args.magnitude_head, 
-               phase_head= args.phase_head,complex_head= args.complex_head,                  
                epoch_num =epoch, experiment=experiment,
                )
     
