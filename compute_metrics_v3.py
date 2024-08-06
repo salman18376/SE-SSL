@@ -263,7 +263,7 @@ if not args.skip_generation:
                 input_mag = compressor.compress(input_mag)
                 batch["input_stft"] = input_mag
 
-            predicted_mag, predicted_phase  = model(batch)
+            predicted_mag  = model(batch)
 
             if config["type"] == "masking" and args.magnitude_head is not None:
                 predicted_mag = predicted_mag * input_mag
@@ -271,7 +271,6 @@ if not args.skip_generation:
             
 
             predicted_mag = predicted_mag.squeeze(0)
-            predicted_phase = predicted_phase.squeeze(0)
             
             
             # ----------------- Select the magnitude_input for waveform reconstruction -----------------
