@@ -34,13 +34,10 @@ class SpeechEnhancementModel(nn.Module):
         ssl_model, 
         freeze_ssl=False, 
         magnitude_head="cnn", 
-        phase_head="cnn",
-        complex_head="cnn",
         ssl_embedding_dim=768, 
         stft_embedding_dim=201,
         type="masking",
         compressor=None,
-        s3prl=False,
         sigmoid_type="learnable",
         use_all_layers=False,
     ):
@@ -48,8 +45,6 @@ class SpeechEnhancementModel(nn.Module):
         :param ssl_model: The SSL model to be used for feature extraction. It is expected to return a last_hidden_state.
         :param freeze_ssl: Whether to freeze the SSL model during training or not.
         :param magnitude_head: The type of head to be used for the magnitude prediction (cnn, lstm, unet, transformer).
-        :param phase_head: The type of head to be used for the phase prediction (cnn, lstm, unet, transformer).
-        :param ssl_embedding_dim: The dimension of the SSL model output.
         :param stft_embedding_dim: The dimension of the STFT embedding.
         :param type: The type of model (masking, mapping). Masking predict a mask to be applied to the input STFT. Mapping predict the STFT directly.
         :param sigmoid_type: The type of sigmoid to be used for the masking model (learnable, standard).
@@ -62,12 +57,9 @@ class SpeechEnhancementModel(nn.Module):
         self.ssl_model = ssl_model
         self.freeze_ssl = freeze_ssl
         self.magnitude_head = magnitude_head
-        self.phase_head = phase_head
-        self.complex_head = complex_head
         self.ssl_embedding_dim = ssl_embedding_dim
         self.stft_embedding_dim = stft_embedding_dim
         self.type = type
-        self.s3prl = s3prl
         self.compressor = compressor
         # this is to check if the STFT is 2x the size of the wav2vec2_hidden_state
         self.n_frames_tolerance = 16 
@@ -77,29 +69,11 @@ class SpeechEnhancementModel(nn.Module):
             self.model_head_mag = self.get_head(self.ssl_embedding_dim + self.stft_embedding_dim, self.magnitude_head)
         else:
             self.model_head_mag = None
-        if self.phase_head is not None:
-            print(f"Initializing phase head of type {self.phase_head}")
-            self.head_input_dim = self.stft_embedding_dim * 2
-            # self.head_input_dim = self.stft_embedding_dim
-            self.model_head_phase = self.get_head(self.head_input_dim, self.phase_head)
-        else:
-            self.model_head_phase = None
         
-        if self.complex_head is not None:
-            print(f"Initializing complex head of type {self.complex_head}")
-            self.head_input_dim = self.stft_embedding_dim * 2
-            # self.head_input_dim = self.stft_embedding_dim
-            self.model_head_complex = self.get_head(self.head_input_dim, self.complex_head)
-        else:
-            self.model_head_complex = None
-        
-        
-
         if freeze_ssl:
             for param in self.ssl_model.parameters():
                 param.requires_grad = False
             self.ssl_model.eval()
-
 
 
         if self.type == "masking":
@@ -207,31 +181,6 @@ class SpeechEnhancementModel(nn.Module):
             output_mag = self.model_head_mag(combined_representation) 
             if self.type == "masking": output_mag = self.magnitude_sigmoid(output_mag)
             
-        output_mag_phase = output_mag * batch["input_stft"]
-            
-        
-        
-        # ------------------------ Phase ------------------------
-        if self.model_head_phase is not None:
-
-            output_phase = self.model_head_phase(complex_noisy) #([32, 798, 201,2])
-            
-            if self.type == "masking": 
-                output_phase = output_phase 
-    
-        else:
-            output_phase = batch["input_phase"]
-            
-         # ------------------------ complex domain ------------------------
-            
-        if self.model_head_complex is not None:
-            
-            
-            output_complex = self.model_head_complex(complex_noisy) 
-            if self.type == "masking": output_complex = self.complex_sigmoid(output_complex)#([32, 798, 201])
-        else:
-            output_complex = complex_noisy
-        
        
         
-        return output_mag, output_phase
+        return output_mag
