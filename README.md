@@ -1,9 +1,6 @@
 # SE_SSL
 # Exploiting Consistency-Preserving Loss and Perceptual Contrast Stretching to Boost SSL-based Speech Enhancement
 
-
-This repository contains legacy (under development) code for developing a framework  SSL-based speech enhancement.
-
 ## Requirements
 
 You can install the required packages using the following command:
