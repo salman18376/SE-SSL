@@ -33,7 +33,7 @@ To run the experiment you can use the following command to train the model:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python train_disc.py \
-    --experiment_config configs/SE_SSL.json \
+    --experiment_config configs/se_ssl.json \
     --num_epochs 50 \
     --batch_size 4\
     --cuda  \
@@ -50,7 +50,7 @@ To evaluate the model you can use the following command:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python compute_metrics_v3.py \
-    --experiment_config configs/SE_SSL.json \
+    --experiment_config configs/se_ssl.json \
     --model_checkpoint /home/salman/SE_Self-Supervise_Learning-/mag_only/wavlm_best/best_model.pt \
     --cuda \
     --reconstructed_audio_folder reconstructed_audio/mag_only/wavlm_best \
