@@ -7,7 +7,7 @@ mkdir -p reconstructed_audio/mag_only/wavlm_best
 mkdir -p results/mag_only
 
 python train_disc.py \
-    --experiment_config configs/SE_SSL.json \
+    --experiment_config configs/se_ssl.json \
     --num_epochs 50 \
     --batch_size 4\
     --cuda  \
@@ -20,7 +20,7 @@ python train_disc.py \
     --log_on_comet 
 
 python compute_metrics_v3.py \
-    --experiment_config configs/SE_SSL.json \
+    --experiment_config configs/se_ssl.json \
     --model_checkpoint /home/salman/SE_Self-Supervise_Learning-/mag_only/wavlm_best/best_model.pt \
     --cuda \
     --reconstructed_audio_folder reconstructed_audio/mag_only/wavlm_best \
