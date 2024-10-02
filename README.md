@@ -1,6 +1,7 @@
 # SE_SSL
 # Exploiting Consistency-Preserving Loss and Perceptual Contrast Stretching to Boost SSL-based Speech Enhancement
-# PCS_CS_WAVLM
+# PCS_CS_WAVLM https://arxiv.org/abs/2408.04773
+
 ## Requirements
 
 You can install the required packages using the following command:
@@ -66,6 +67,14 @@ You should also check the `CUDA_VISIBLE_DEVICES` variable to make sure that you 
 Enhanced WAV files are saved in the reconstructed_audio_folder.
 For computing other metrics like CBAK, COVL, etc you can run metrics.sh and update the paths for enhanced and clean waveforms accordingly.
 
+## citation:
+
+@article{khan2024exploiting,
+  title={Exploiting Consistency-Preserving Loss and Perceptual Contrast Stretching to Boost SSL-based Speech Enhancement},
+  author={Khan, Muhammad Salman and La Quatra, Moreno and Hung, Kuo-Hsuan and Fu, Szu-Wei and Siniscalchi, Sabato Marco and Tsao, Yu},
+  journal={arXiv preprint arXiv:2408.04773},
+  year={2024}
+}
 
 
 
